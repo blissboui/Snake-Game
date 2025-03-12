@@ -7,12 +7,15 @@
 
 // 💀🍎🍏🍗▒🧱▄ ☠💣☠■
 // map size
+#define MAP_SIZE_X 40
+#define MAP_SIZE_Y 20
+
 #define MAP_MIN_WIDTH 5
-#define MAP_WIDTH 40
 #define MAP_MIN_HEIGHT 2
-#define MAP_HEIGHT 20
-#define MAP_XPOS_CENTER (MAP_WIDTH - MAP_MIN_WIDTH)/2 + MAP_MIN_WIDTH
-#define MAP_YPOS_CENTER (MAP_HEIGHT - MAP_MIN_HEIGHT)/2 + MAP_MIN_HEIGHT
+#define MAP_WIDTH (MAP_SIZE_X + MAP_MIN_WIDTH)
+#define MAP_HEIGHT (MAP_SIZE_Y + MAP_MIN_HEIGHT)
+#define MAP_XPOS_CENTER (MAP_SIZE_X / 2 + MAP_MIN_WIDTH)
+#define MAP_YPOS_CENTER (MAP_SIZE_Y / 2 + MAP_MIN_HEIGHT)
 
 #define ESC_KEY 27
 #define ENTER_KEY 13
@@ -35,19 +38,24 @@
 #define NORMAL_FOOD 0
 #define SPECIAL_FOOD 1
 
+#define FOOD 0
+#define OBSTACLE 1
+#define WALL 2
+#define SNAKE 3
+
 int xPos_snake[50];
 int yPos_snake[50];
 int snakeLen;
+clock_t snakeTime;
 
 int foodXpos[100];
 int foodYpos[100];
 int foodType[100];
 int foodLen;
-bool foodFlag;
 time_t foodTime;
 
-int obstacleXpos[10];
-int obstacleYpos[10];
+int obstacleXpos[25];
+int obstacleYpos[25];
 int obstacleLen;
 time_t obstacleTime;
 time_t obstacleDelectTime;
@@ -62,13 +70,13 @@ int lastKey;
 void ShowMap(void); // 맵 그리기
 void hideCursor(void);  // 커서 지우기
 
-void Goto_XY(int x, int y, char* str);// xy좌표에 출력
+void Goto_XY(float x, int y, char* str);// xy좌표에 출력
 void GetKey(void); // 키 입력
+bool SelectYorN(int yOffset);  // Yes = 1, No = 2 반환 함수
 void ShowScore(void); // 점수 출력
 
 void InitSnake(void);   // 뱀 초기값
 void MoveSnake(void);   // 뱀 move
-void ShowSnake(void);    // 뱀 출력
 
 void RandomPos(int* xPtr, int* yPtr);   // 랜덤 좌표 생성
 void GenerateFood(void);    // 먹이 생성
@@ -81,8 +89,7 @@ void CheckObstacleCollision(void);   // 장애물과 충돌 검사
 void CheckWallCollision(void);   // 벽과 충돌 검사
 void CheckSnakeCollision(void);  // 몸통과 출동 검사
 
-// void ExitGame(void);    // 게임종료
-// void PauseGame(void);   // 일시정지
+void PauseGame(void);    // 게임정지
 void GameOver(void);    // 게임오버
 
 
@@ -92,14 +99,12 @@ int main(void)
     ShowMap();  // Map 출력
     InitSnake();    // 게임 초기화
     srand(time(NULL));  // 난수 생성
-
     
 
     while(1)
     {
-        ShowScore();    // 점수 표시
         if(kbhit()) GetKey();   // 키 입력 반환    
-        MoveSnake();    // 키 입력에 따른 방향으로 뱀머리 이동
+        MoveSnake();    // 뱀 이동 후 출력
         
         GenerateFood(); // 먹이 생성
         CheckFoodCollision();   // 먹이와 충돌 검사
@@ -111,103 +116,25 @@ int main(void)
         CheckObstacleCollision();   // 장애물과 충돌 검사
         CheckSnakeCollision();      // 몸통과 출동 검사
         CheckWallCollision();       // 벽과 충돌 검사
-        
-        // if(currntKey == ESC_KEY)    ExitGame();
-        // if(currntKey == ENTER_KEY)
-        
-        ShowSnake();    // 뱀 출력
-        Sleep(speed);   // 뱀 속도 조절
     }
 }
-// void ExitGame(void)
-// {
-//     int flag = 0;
-//     Goto_XY(MAP_XPOS_CENTER - 3, MAP_YPOS_CENTER - 3, "<  Exit Game ? >");
-//     Goto_XY(MAP_XPOS_CENTER - 1, MAP_YPOS_CENTER - 1, "> Yes");
-//     Goto_XY(MAP_XPOS_CENTER - 1, MAP_YPOS_CENTER - 2, "  NO");
 
-//     while(1)
-//     {
-//         char key = getch();
-//         if(key == 0 || key == 224)
-//         {
-//             if(key == UP_KEY)
-//                 flag = 0;
-//             else if(key == DOWN_KEY)
-//                 flag = 1;
-//         }
-//         if(flag == 0)
-//         {
-//             Goto_XY(MAP_XPOS_CENTER - 1, MAP_YPOS_CENTER - 1, "> Yes");
-//             Goto_XY(MAP_XPOS_CENTER - 1, MAP_YPOS_CENTER - 2, "  NO");
-//         }
-//         else
-//         {
-//             Goto_XY(MAP_XPOS_CENTER - 1, MAP_YPOS_CENTER - 1, " Yes");
-//             Goto_XY(MAP_XPOS_CENTER - 1, MAP_YPOS_CENTER - 2, ">  NO");
-//         }
-//     }
-// }
-void GameOver(void)
+void ShowMap(void)
 {
-    Goto_XY(MAP_XPOS_CENTER - 3, MAP_YPOS_CENTER - 3, "<  Game Over  >");
-    Goto_XY(MAP_XPOS_CENTER - 1, MAP_YPOS_CENTER - 1, "Score: ");
-    printf("%d", score);
-
-    getch(); 
-
-    system("cls");
-    
-    ShowMap();
-    InitSnake();
-
-}
-void ShowScore(void)
-{
-    Goto_XY(MAP_WIDTH-4, MAP_HEIGHT+1, "Score: ");
-    printf("%d", score);
-}
-
-void CheckFoodCollision(void)       
-{
-    int flag = 0;
-    for(int i = 0 ; i < foodLen ; i++)
+    system("clear");
+    for(int y = 0 ; y < MAP_HEIGHT+1 ; y++)
     {
-        if(xPos_snake[0] == foodXpos[i] && yPos_snake[0] == foodYpos[i] && flag == 0)
+        for(int x = 0 ; x < MAP_WIDTH+1 ; x++)
         {
-            if(foodType[i] == SPECIAL_FOOD)    // 보너스 먹이
-            {   
-                if(snakeLen > 3)
-                {
-                    snakeLen--;
-                    foodFlag = true;
-                }
-                score += 10;
-                speed -= 5;
-                flag = 1;
-            }
-
-            else
+            if(x >= MAP_MIN_WIDTH && y >= MAP_MIN_HEIGHT)
             {
-                snakeLen++;
-                score++;
-                speed -= 5;
-                flag = 1; 
+                if(y == MAP_MIN_HEIGHT || y == MAP_HEIGHT || x == MAP_MIN_WIDTH || x == MAP_WIDTH)
+                {
+                    Goto_XY(x, y, "◼");
+                }
             }
-            
-            speed = speed < MAX_SPEED ? MAX_SPEED : speed;  // 뱀 최대 속도 제한
-        }
-
-        if(flag == 1)
-        {
-            foodXpos[i] = foodXpos[i+1];
-            foodYpos[i] = foodYpos[i+1];
-            foodType[i] = foodType[i+1];
         }
     }
-
-    if(flag == 1)
-        foodLen--;
 }
 
 void hideCursor(void)
@@ -219,23 +146,197 @@ void hideCursor(void)
     SetConsoleCursorInfo(hConsole, &cursorInfo);
 }
 
-void RandomPos(int* xPtr, int* yPtr)
+void Goto_XY(float x, int y, char* str)
 {
-    int flag = 0;
+    COORD pos = {x*2, y};
+    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
+    printf("%s", str);
+}
+
+void GetKey(void)
+{
+    int input = _getch();
+    
+    if(input == ESC_KEY)    PauseGame();
+
+    else if(input == 0 || input == 224)
+    {
+        input = _getch();
+        if(input == UP_KEY && lastKey != DOWN_KEY)
+            currntKey = UP_KEY;
+        else if(input == LEFT_KEY && lastKey != RIGHT_KEY)
+            currntKey = LEFT_KEY;
+        else if(input == DOWN_KEY && lastKey != UP_KEY)
+            currntKey = DOWN_KEY;
+        else if(input == RIGHT_KEY && lastKey != LEFT_KEY)
+            currntKey = RIGHT_KEY;
+    }
+}
+
+bool SelectYorN(int yOffset)
+{
+    // Yes = 1, No = 2 반환 함수
+    int flag = 1;
+    Goto_XY(MAP_XPOS_CENTER-2, MAP_YPOS_CENTER+(yOffset)-1, "            ");
+    Goto_XY(MAP_XPOS_CENTER-2, MAP_YPOS_CENTER+(yOffset),   "  > Yes     ");
+    Goto_XY(MAP_XPOS_CENTER-2, MAP_YPOS_CENTER+(yOffset)+1, "    NO      ");
+    Goto_XY(MAP_XPOS_CENTER-2, MAP_YPOS_CENTER+(yOffset)+2, "            ");
+
+    
     while(1)
     {
-    // 랜덤 좌표
-    *xPtr = rand() % ((MAP_WIDTH - 1) - (MAP_MIN_WIDTH + 1) + 1) + (MAP_MIN_WIDTH + 1);
-    *yPtr = rand() % ((MAP_HEIGHT - 1) - (MAP_MIN_HEIGHT + 1) + 1) + (MAP_MIN_HEIGHT + 1);
+        int key = _getch();
+        if(key == 0 || key == 224)
+        {
+            key = _getch();
+            if(key == UP_KEY)
+                flag = 1;
+            else if(key == DOWN_KEY)
+                flag = 0;
+        }
+        else if(key == ENTER_KEY)
+        {
+            Goto_XY(MAP_XPOS_CENTER-7, MAP_YPOS_CENTER+(yOffset)-2, "                          ");
+            Goto_XY(MAP_XPOS_CENTER-2, MAP_YPOS_CENTER+(yOffset),   "         ");
+            Goto_XY(MAP_XPOS_CENTER-2, MAP_YPOS_CENTER+(yOffset)+1, "         ");
 
-    for(int i = 0 ; i < snakeLen ; i++) // 생성이 몸통과 겹치지 않게
-    {
-        if(*xPtr == xPos_snake[i] && *yPtr == yPos_snake[i]) 
-            flag = 1;
+            // 문구가 뱀이랑 겹치면 뱀모양 다시 그리기
+            Goto_XY(xPos_snake[0], yPos_snake[0], "🟢");    
+            for(int i = 1 ; i < snakeLen ; i++)
+            {
+                if(MAP_XPOS_CENTER-10 <= xPos_snake[i] <= MAP_XPOS_CENTER+10 && MAP_YPOS_CENTER-10 <= yPos_snake[i] <= MAP_YPOS_CENTER+10)
+                {
+                    Goto_XY(xPos_snake[i], yPos_snake[i], "🟩");    
+                }       
+            }
+            
+            // 문구가 먹이랑 겹치면 다시 그리기
+            for(int i = 0 ; i < foodLen ; i++)
+            {
+                if(MAP_XPOS_CENTER-10 <= foodXpos[i] <= MAP_XPOS_CENTER+10 && MAP_YPOS_CENTER-10 <= foodYpos[i] <= MAP_YPOS_CENTER+10)
+                {
+                    if(foodType[i] == SPECIAL_FOOD)    
+                        Goto_XY(foodXpos[i], foodYpos[i], "🍗");
+                    else
+                        Goto_XY(foodXpos[i], foodYpos[i], "🍎");
+                }
+            }
+
+            // 문구가 장애물이랑 겹치면 다시 그리기
+            for(int i = 0 ; i < obstacleLen ; i++)
+            {
+                if(MAP_XPOS_CENTER-10 <= obstacleXpos[i] <= MAP_XPOS_CENTER+10 && MAP_YPOS_CENTER-10 <= obstacleYpos[i] <= MAP_YPOS_CENTER+10)
+                {
+                    Goto_XY(obstacleXpos[i], obstacleYpos[i], "💀");
+                }
+            }
+
+            if(flag == 1)
+                return true;
+                
+            else  
+                return false;
+
+        }
+
+        if(flag == 1)
+        {
+            Goto_XY(MAP_XPOS_CENTER-1, MAP_YPOS_CENTER+(yOffset),   "> Yes");
+            Goto_XY(MAP_XPOS_CENTER-1, MAP_YPOS_CENTER+(yOffset)+1, "  NO");
+        }
+        else
+        {
+            Goto_XY(MAP_XPOS_CENTER-1, MAP_YPOS_CENTER+(yOffset),   "  Yes");
+            Goto_XY(MAP_XPOS_CENTER-1, MAP_YPOS_CENTER+(yOffset)+1, "> NO");
+        }
     }
-    
-    if(flag == 0)   
-        break;
+}
+
+void ShowScore(void)
+{
+    Goto_XY(MAP_WIDTH-4, MAP_HEIGHT+1, "Score: ");
+    printf("%d", score);
+}
+
+void InitSnake(void)
+{
+    xPos_snake[0] = MAP_XPOS_CENTER;
+    yPos_snake[0] = MAP_YPOS_CENTER;
+    currntKey = RIGHT_KEY;
+    snakeLen = 3;
+    foodLen = 0;
+    obstacleLen = 0;
+    score = 0;
+    speed = 250;
+    obstacleSpawnSpeed = 0;
+    ShowScore();
+
+    foodTime = time(NULL) + FOOD_TIME;
+    obstacleTime = time(NULL) + OBSTACLE_TIME;
+    obstacleDelectTime = obstacleTime + OBSTACLE_DELECT_TIME;
+
+
+    for(int i = 1 ; i < snakeLen ; i++)
+    {
+        xPos_snake[i] = xPos_snake[i-1] - 1;
+        yPos_snake[i] = yPos_snake[0];
+    }
+}
+
+void MoveSnake(void)
+{
+    if(clock() >= snakeTime)
+    {
+        Goto_XY(xPos_snake[snakeLen-1], yPos_snake[snakeLen-1], " ");
+
+        for(int i = snakeLen ; i > 0 ; i--)
+        {
+            xPos_snake[i] = xPos_snake[i-1];
+            yPos_snake[i] = yPos_snake[i-1];
+        }
+
+        if(currntKey == UP_KEY)
+            yPos_snake[0]--;
+
+        else if(currntKey == LEFT_KEY)
+            xPos_snake[0]--;
+
+        else if(currntKey == DOWN_KEY)
+            yPos_snake[0]++;
+
+        else if(currntKey == RIGHT_KEY)
+            xPos_snake[0]++;
+
+        
+        Goto_XY(xPos_snake[0], yPos_snake[0], "🟢");
+        Goto_XY(xPos_snake[1], yPos_snake[1], "🟩");
+
+        lastKey = currntKey;
+        snakeTime = clock() + speed;
+    }
+}
+
+void RandomPos(int* xPtr, int* yPtr)
+{
+    while(1)
+    {
+        int flag = 0;
+
+        // 랜덤 좌표
+        *xPtr = rand() % ((MAP_WIDTH - 1) - (MAP_MIN_WIDTH + 1) + 1) + (MAP_MIN_WIDTH + 1);
+        *yPtr = rand() % ((MAP_HEIGHT - 1) - (MAP_MIN_HEIGHT + 1) + 1) + (MAP_MIN_HEIGHT + 1);
+
+        for(int i = 0 ; i < snakeLen ; i++) // 생성이 뱀과 겹치지 않게
+        {
+            if(*xPtr == xPos_snake[i] && *yPtr == yPos_snake[i])
+            { 
+                flag = 1;
+                break;
+            }
+        }
+        
+        if(flag == 0)   
+            break;
     }
 }
 
@@ -261,6 +362,52 @@ void GenerateFood(void)
     }
 }
 
+void CheckFoodCollision(void)       
+{
+    int flag = 0;
+    int i = 0;
+    for(i ; i < foodLen ; i++)
+    {
+        if(xPos_snake[0] == foodXpos[i] && yPos_snake[0] == foodYpos[i] && flag == 0)
+        {
+            if(foodType[i] == SPECIAL_FOOD)    // 보너스 먹이
+            {   
+                if(snakeLen > 3)
+                {
+                    Goto_XY(xPos_snake[snakeLen-1], yPos_snake[snakeLen-1], " ");
+                    snakeLen--;
+                }
+                score += 10;
+                speed -= 5;
+                flag = 1;
+            }
+
+            else
+            {
+                snakeLen++;
+                score++;
+                speed -= 5;
+                flag = 1; 
+            }
+            
+            ShowScore();
+            speed = speed < MAX_SPEED ? MAX_SPEED : speed;  // 뱀 최대 속도 제한
+            break;
+        }
+    }
+
+    if(flag == 1)
+    {
+        for(int k = i ; k < foodLen-1 ; k++)
+        {    
+            foodXpos[k] = foodXpos[k+1];
+            foodYpos[k] = foodYpos[k+1];
+            foodType[k] = foodType[k+1];
+        }
+        foodLen--;
+    }
+}
+
 void GenerateObstacle(void)
 {
     if(time(NULL) >= obstacleTime)
@@ -272,48 +419,23 @@ void GenerateObstacle(void)
         obstacleTime = time(NULL) + (OBSTACLE_TIME - obstacleSpawnSpeed);
     }
     
-    // 뱀 속도 빠를수록 장애물 생성 속도 증가
-    obstacleSpawnSpeed = speed < 150 ? 2 : 0;
-    obstacleSpawnSpeed = speed < 50 ? 4 : 2;
+    // 뱀 속도 빠를수록 장애물 생성 속도 증가 (단위: sec)
+    obstacleSpawnSpeed = speed < 50 ? 4 : speed < 150 ? 2 : 0;
 }
 
 void DelectObstacle(void)
 {
-    if(time(NULL) >= obstacleDelectTime)
+    if(time(NULL) >= obstacleDelectTime && obstacleLen > 0)
     {
         Goto_XY(obstacleXpos[0], obstacleYpos[0], " ");
         
-        for(int i = 0 ; i < obstacleLen ; i++)
+        for(int i = 0 ; i < obstacleLen-1 ; i++)
         {
             obstacleXpos[i] = obstacleXpos[i+1];
             obstacleYpos[i] = obstacleYpos[i+1];
         }
         obstacleLen--;
         obstacleDelectTime = time(NULL) + OBSTACLE_TIME;   // 다음 장애물 삭제 시간
-    }
-}
-
-void InitSnake(void)
-{
-    xPos_snake[0] = MAP_XPOS_CENTER;
-    yPos_snake[0] = MAP_YPOS_CENTER;
-    currntKey = RIGHT_KEY;
-    snakeLen = 3;
-    foodLen = 0;
-    obstacleLen = 0;
-    score = 0;
-    speed = 250;
-    obstacleSpawnSpeed = 0;
-
-    foodTime = time(NULL) + FOOD_TIME;
-    obstacleTime = time(NULL) + OBSTACLE_TIME;
-    obstacleDelectTime = obstacleTime + OBSTACLE_DELECT_TIME;
-
-
-    for(int i = 1 ; i < snakeLen ; i++)
-    {
-        xPos_snake[i] = xPos_snake[i-1] - 1;
-        yPos_snake[i] = yPos_snake[0];
     }
 }
 
@@ -326,6 +448,12 @@ void CheckObstacleCollision(void)
     }
 }
 
+void CheckWallCollision(void)
+{
+    if(xPos_snake[0] < MAP_MIN_WIDTH+1 || xPos_snake[0] > MAP_WIDTH-1 || yPos_snake[0] < MAP_MIN_HEIGHT+1 || yPos_snake[0] > MAP_HEIGHT-1)
+        GameOver();
+}
+
 void CheckSnakeCollision(void)
 {
     for(int i = 1 ; i < snakeLen ; i++)
@@ -335,91 +463,32 @@ void CheckSnakeCollision(void)
     }
 }
 
-void CheckWallCollision(void)
+void PauseGame(void)
 {
-    if(xPos_snake[0] < MAP_MIN_WIDTH+1 || xPos_snake[0] > MAP_WIDTH-1 || yPos_snake[0] < MAP_MIN_HEIGHT+1 || yPos_snake[0] > MAP_HEIGHT-1)
+    Goto_XY(MAP_XPOS_CENTER-6, MAP_YPOS_CENTER-3, "  <  Continue Game ?  >  ");
+
+    if(SelectYorN(-1) == false)    // No 선택 시
         GameOver();
 }
-void MoveSnake(void)
+
+void GameOver(void)
 {
-    Goto_XY(xPos_snake[snakeLen-1], yPos_snake[snakeLen-1], " ");
+    Goto_XY(MAP_XPOS_CENTER-3, MAP_YPOS_CENTER-3, "<  Game Over  >");
+    Goto_XY(MAP_XPOS_CENTER-1, MAP_YPOS_CENTER-1,   "Score: ");
+    printf("%d", score);
 
-    if(foodFlag == true)    // 보너스 먹이를 먹으면
+    int key;
+    while(key != ENTER_KEY) // Enter 키를 누르면 종료
     {
-        Goto_XY(xPos_snake[snakeLen], yPos_snake[snakeLen], " ");
-    }
-    for(int i = snakeLen ; i > 0 ; i--)
-    {
-        xPos_snake[i] = xPos_snake[i-1];
-        yPos_snake[i] = yPos_snake[i-1];
-    }
-
-    if(currntKey == UP_KEY)
-        yPos_snake[0] = --yPos_snake[0];
-
-    else if(currntKey == LEFT_KEY)
-        xPos_snake[0] = --xPos_snake[0];
-
-    else if(currntKey == DOWN_KEY)
-        yPos_snake[0] = ++yPos_snake[0];
-
-    else if(currntKey == RIGHT_KEY)
-        xPos_snake[0] = ++xPos_snake[0];
-}
-
-void GetKey(void)
-{
-    int input = _getch();
-    
-    if(input == ESC_KEY)    currntKey = ESC_KEY;
-
-    else if(input == ENTER_KEY) currntKey = ENTER_KEY;
-
-    else if(input == 0 || input == 224)
-    {
-        input = _getch();
-        if(input == UP_KEY && lastKey != DOWN_KEY)
-            currntKey = UP_KEY;
-        else if(input == LEFT_KEY && lastKey != RIGHT_KEY)
-            currntKey = LEFT_KEY;
-        else if(input == DOWN_KEY && lastKey != UP_KEY)
-            currntKey = DOWN_KEY;
-        else if(input == RIGHT_KEY && lastKey != LEFT_KEY)
-            currntKey = RIGHT_KEY;
-
-        lastKey = currntKey;
-    }
-}
-void ShowSnake(void)
-{
-    Goto_XY(xPos_snake[0], yPos_snake[0], "🟢");    // 뱀 머리 출력
-
-    for(int i = 1 ; i < snakeLen ; i++)
-    {
-        Goto_XY(xPos_snake[i], yPos_snake[i], "🟩");
+        key = _getch();
     }
     
-}
-void Goto_XY(int x, int y, char* str)
-{
-    COORD pos = {x*2, y};
-    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
-    printf("%s", str);
-}
+    Goto_XY(MAP_XPOS_CENTER-3, MAP_YPOS_CENTER-3, "<  New Game?  >");
 
-void ShowMap(void)
-{
-    for(int y = 0 ; y < MAP_HEIGHT+1 ; y++)
-    {
-        for(int x = 0 ; x < MAP_WIDTH+1 ; x++)
-        {
-            if(x >= MAP_MIN_WIDTH && y >= MAP_MIN_HEIGHT)
-            {
-                if(y == MAP_MIN_HEIGHT || y == MAP_HEIGHT || x == MAP_MIN_WIDTH || x == MAP_WIDTH)
-                {
-                    Goto_XY(x, y, "◼");
-                }
-            }
-        }
-    }
+    if(SelectYorN(-1) == false)
+        exit(0);
+        
+    ShowMap();
+    InitSnake();
+
 }
