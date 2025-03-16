@@ -5,7 +5,6 @@
 #include <stdbool.h>
 #include <time.h>
 
-// 💀🍎🍏🍗▒🧱▄ ☠💣☠■
 // map size
 #define MAP_SIZE_X 40
 #define MAP_SIZE_Y 20
@@ -43,30 +42,6 @@
 #define WALL 2
 #define SNAKE 3
 
-int xPos_snake[50];
-int yPos_snake[50];
-int snakeLen;
-clock_t snakeTime;
-
-int foodXpos[100];
-int foodYpos[100];
-int foodType[100];
-int foodLen;
-time_t foodTime;
-
-int obstacleXpos[25];
-int obstacleYpos[25];
-int obstacleLen;
-time_t obstacleTime;
-time_t obstacleDelectTime;
-int obstacleSpawnSpeed;
-
-int score;
-int speed;
-
-int currntKey;
-int lastKey;
-
 void ShowMap(void); // 맵 그리기
 void hideCursor(void);  // 커서 지우기
 
@@ -92,6 +67,29 @@ void CheckSnakeCollision(void);  // 몸통과 출동 검사
 void PauseGame(void);    // 게임정지
 void GameOver(void);    // 게임오버
 
+int xPos_snake[50];
+int yPos_snake[50];
+int snakeLen;
+clock_t snakeTime;
+
+int foodXpos[100];
+int foodYpos[100];
+int foodType[100];
+int foodLen;
+time_t foodTime;
+
+int obstacleXpos[25];
+int obstacleYpos[25];
+int obstacleLen;
+time_t obstacleTime;
+time_t obstacleDelectTime;
+int obstacleSpawnSpeed;
+
+int score;
+int speed;
+
+int currntKey;
+int lastKey;
 
 int main(void)
 {   
@@ -121,7 +119,7 @@ int main(void)
 
 void ShowMap(void)
 {
-    system("clear");
+    system("cls");
     for(int y = 0 ; y < MAP_HEIGHT+1 ; y++)
     {
         for(int x = 0 ; x < MAP_WIDTH+1 ; x++)
